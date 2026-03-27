@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SECS2GEM/SECS2GEM.csproj" />
+  <Project Path="WebGem/WebGem.csproj" />
+</Solution>

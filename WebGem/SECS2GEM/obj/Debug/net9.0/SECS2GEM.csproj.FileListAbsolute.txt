@@ -1,0 +1,12 @@
+D:\secs\WebGem\SECS2GEM\bin\Debug\net9.0\SECS2GEM.deps.json
+D:\secs\WebGem\SECS2GEM\bin\Debug\net9.0\SECS2GEM.dll
+D:\secs\WebGem\SECS2GEM\bin\Debug\net9.0\SECS2GEM.pdb
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.GeneratedMSBuildEditorConfig.editorconfig
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.AssemblyInfoInputs.cache
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.AssemblyInfo.cs
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.csproj.CoreCompileInputs.cache
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.sourcelink.json
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.dll
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\refint\SECS2GEM.dll
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\SECS2GEM.pdb
+D:\secs\WebGem\SECS2GEM\obj\Debug\net9.0\ref\SECS2GEM.dll

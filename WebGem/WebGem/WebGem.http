@@ -1,0 +1,6 @@
+@WebGem_HostAddress = http://localhost:5143
+
+GET {{WebGem_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
