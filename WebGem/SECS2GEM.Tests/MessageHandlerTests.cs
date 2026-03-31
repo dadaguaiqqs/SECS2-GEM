@@ -86,7 +86,7 @@ public class MessageHandlerTests
     [Fact]
     public async Task S1F13Handler_ShouldReturnS1F14WithAccepted()
     {
-        // Arrange
+        // Arrange、
         var handler = new S1F13Handler();
         var message = new SecsMessage(1, 13, true);
 
