@@ -69,7 +69,10 @@ public class MessageHandlerTests
     [Fact]
     public async Task S1F13Handler_ShouldSetCommunicatingState()
     {
-        // Arrange
+        // Arrange - 状态转换需要遵循：Disabled → Enabled → WaitCommunicationRequest → Communicating
+        _stateManager.SetCommunicationState(GemCommunicationState.Enabled);
+        _stateManager.SetCommunicationState(GemCommunicationState.WaitCommunicationRequest);
+        
         var handler = new S1F13Handler();
         var message = new SecsMessage(1, 13, true);
 

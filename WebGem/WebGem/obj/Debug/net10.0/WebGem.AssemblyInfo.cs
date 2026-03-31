@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebGem")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d2b5cae116369eb705189227ae21eaf35acf9916")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8791b689d552e5ea60d6e06e694bfa8e170a13c1")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebGem")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebGem")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

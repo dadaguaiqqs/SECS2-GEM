@@ -6,6 +6,7 @@ using SECS2GEM.Core.Enums;
 using SECS2GEM.Core.Exceptions;
 using SECS2GEM.Domain.Interfaces;
 using SECS2GEM.Infrastructure.Configuration;
+using SECS2GEM.Infrastructure.Logging;
 using SECS2GEM.Infrastructure.Serialization;
 using SECS2GEM.Infrastructure.Services;
 
@@ -31,6 +32,7 @@ namespace SECS2GEM.Infrastructure.Connection
         private readonly HsmsConfiguration _config;
         private readonly ISecsSerializer _serializer;
         private readonly ITransactionManager _transactionManager;
+        private readonly IMessageLogger _messageLogger;
         private IGemState? _gemState;
 
         // 网络
@@ -120,13 +122,15 @@ namespace SECS2GEM.Infrastructure.Connection
         public HsmsConnection(
             HsmsConfiguration config,
             ISecsSerializer? serializer = null,
-            ITransactionManager? transactionManager = null)
+            ITransactionManager? transactionManager = null,
+            IMessageLogger? messageLogger = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _config.Validate();
 
             _serializer = serializer ?? new SecsSerializer();
             _transactionManager = transactionManager ?? new Services.TransactionManager();
+            _messageLogger = messageLogger ?? new MessageLogger(config.MessageLogging);
 
             if (_serializer is SecsSerializer secsSerializer)
             {
@@ -166,6 +170,9 @@ namespace SECS2GEM.Infrastructure.Connection
 
                 State = ConnectionState.Connected;
 
+                // 初始化消息日志记录器
+                await _messageLogger.InitializeAsync(_config.IpAddress, _config.Port, _config.DeviceId);
+
                 InitializeChannelAndTasks();
 
                 // Active模式：发送Select.req
@@ -181,7 +188,7 @@ namespace SECS2GEM.Infrastructure.Connection
         /// <summary>
         /// 开始监听（Passive模式）
         /// </summary>
-        public async Task StartListeningAsync(CancellationToken cancellationToken = default)
+        public Task StartListeningAsync(CancellationToken cancellationToken = default)
         {
             if (_config.Mode != HsmsConnectionMode.Passive)
             {
@@ -199,8 +206,10 @@ namespace SECS2GEM.Infrastructure.Connection
 
             _cts = new CancellationTokenSource();
 
-            // 等待连接
+            // 等待连接（后台运行）
             _ = AcceptConnectionsAsync(_cts.Token);
+            
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -212,7 +221,14 @@ namespace SECS2GEM.Infrastructure.Connection
             {
                 try
                 {
-                    var client = await _listener!.AcceptTcpClientAsync(cancellationToken);
+                    // 检查 listener 是否有效
+                    var listener = _listener;
+                    if (listener == null)
+                    {
+                        break;
+                    }
+                    
+                    var client = await listener.AcceptTcpClientAsync(cancellationToken);
                     
                     // 如果已有连接，拒绝新连接
                     if (State != ConnectionState.NotConnected)
@@ -229,6 +245,10 @@ namespace SECS2GEM.Infrastructure.Connection
 
                     State = ConnectionState.Connected;
 
+                    // 初始化消息日志记录器（Passive模式使用远程IP）
+                    var remoteIp = (_tcpClient.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "unknown";
+                    await _messageLogger.InitializeAsync(remoteIp, _config.Port, _config.DeviceId);
+
                     InitializeChannelAndTasks();
 
                     // Passive模式：启动T7超时监控
@@ -238,9 +258,18 @@ namespace SECS2GEM.Infrastructure.Connection
                 {
                     break;
                 }
+                catch (ObjectDisposedException)
+                {
+                    // listener 已被释放，正常退出
+                    break;
+                }
                 catch (Exception)
                 {
-                    // 记录错误，继续监听
+                    // 其他错误，检查是否应该继续
+                    if (cancellationToken.IsCancellationRequested || _listener == null)
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -277,7 +306,7 @@ namespace SECS2GEM.Infrastructure.Connection
 
             try
             {
-                // 发送Separate.req
+                // 发送Separate.req（带超时，防止阻塞）
                 if (_stream != null && _tcpClient?.Connected == true)
                 {
                     try
@@ -286,11 +315,17 @@ namespace SECS2GEM.Infrastructure.Connection
                             SessionId, 
                             _transactionManager.GetNextTransactionId());
                         var data = _serializer.Serialize(separateMsg);
-                        await _stream.WriteAsync(data, cancellationToken);
+                        
+                        // 使用2秒超时，防止网络异常时阻塞
+                        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken, timeoutCts.Token);
+                        
+                        await _stream.WriteAsync(data, linkedCts.Token).ConfigureAwait(false);
                     }
                     catch
                     {
-                        // 忽略发送错误
+                        // 忽略发送错误（包括超时）
                     }
                 }
             }
@@ -306,18 +341,61 @@ namespace SECS2GEM.Infrastructure.Connection
         /// </summary>
         private void Cleanup()
         {
-            _cts?.Cancel();
-            _sendChannel?.Writer.TryComplete();
+            // 1. 先取消所有后台任务
+            try
+            {
+                _cts?.Cancel();
+            }
+            catch
+            {
+                // 忽略取消错误
+            }
 
-            _stream?.Dispose();
+            // 2. 标记发送通道完成
+            try
+            {
+                _sendChannel?.Writer.TryComplete();
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            // 3. 关闭网络流（这会中断正在进行的读写操作）
+            try
+            {
+                _stream?.Close();
+                _stream?.Dispose();
+            }
+            catch
+            {
+                // 忽略关闭错误
+            }
             _stream = null;
 
-            _tcpClient?.Dispose();
+            // 4. 关闭TCP客户端
+            try
+            {
+                _tcpClient?.Close();
+                _tcpClient?.Dispose();
+            }
+            catch
+            {
+                // 忽略关闭错误
+            }
             _tcpClient = null;
 
-            _transactionManager.CancelAllTransactions();
+            // 5. 取消所有等待中的事务
+            try
+            {
+                _transactionManager.CancelAllTransactions();
+            }
+            catch
+            {
+                // 忽略
+            }
+            
             _linktestFailures = 0;
-
             RemoteEndpoint = null;
         }
 
@@ -494,10 +572,16 @@ namespace SECS2GEM.Infrastructure.Connection
                         var span = receivedData.ToArray().AsSpan();
                         if (_serializer.TryReadMessage(span, out var message, out var consumed))
                         {
+                            // 获取消息的原始字节用于日志记录
+                            var messageBytes = receivedData.Take(consumed).ToArray();
+                            
                             receivedData.RemoveRange(0, consumed);
                             
                             if (message != null)
                             {
+                                // 记录接收的消息
+                                await LogReceivedMessageAsync(message, messageBytes);
+                                
                                 await HandleMessageAsync(message, cancellationToken);
                             }
                         }
@@ -539,6 +623,10 @@ namespace SECS2GEM.Infrastructure.Connection
                         if (_stream != null)
                         {
                             await _stream.WriteAsync(data, cancellationToken);
+                            
+                            // 记录发送的消息
+                            await LogSentMessageAsync(data);
+                            
                             completion?.TrySetResult(true);
                         }
                         else
@@ -555,6 +643,47 @@ namespace SECS2GEM.Infrastructure.Connection
             catch (OperationCanceledException)
             {
                 // 正常取消
+            }
+        }
+
+        /// <summary>
+        /// 记录发送的消息
+        /// </summary>
+        private async Task LogSentMessageAsync(byte[] data)
+        {
+            if (!_messageLogger.IsEnabled) return;
+
+            try
+            {
+                if (_serializer.TryReadMessage(data, out var message, out _) && message != null)
+                {
+                    await _messageLogger.LogMessageAsync(message, data, MessageDirection.Send);
+                }
+                else
+                {
+                    await _messageLogger.LogRawBytesAsync(data, MessageDirection.Send, "Raw data");
+                }
+            }
+            catch
+            {
+                // 忽略日志错误
+            }
+        }
+
+        /// <summary>
+        /// 记录接收的消息
+        /// </summary>
+        private async Task LogReceivedMessageAsync(HsmsMessage message, byte[] data)
+        {
+            if (!_messageLogger.IsEnabled) return;
+
+            try
+            {
+                await _messageLogger.LogMessageAsync(message, data, MessageDirection.Receive);
+            }
+            catch
+            {
+                // 忽略日志错误
             }
         }
 
@@ -713,12 +842,62 @@ namespace SECS2GEM.Infrastructure.Connection
 
         public async ValueTask DisposeAsync()
         {
-            await DisconnectAsync();
+            // 先取消所有后台任务（包括AcceptConnectionsAsync）
+            try
+            {
+                _cts?.Cancel();
+            }
+            catch
+            {
+                // 忽略取消时的错误
+            }
             
-            _listener?.Stop();
-            _listener?.Dispose();
+            // 断开连接
+            await DisconnectAsync().ConfigureAwait(false);
             
-            _cts?.Dispose();
+            // 停止监听（被动模式）
+            try
+            {
+                _listener?.Stop();
+            }
+            catch
+            {
+                // 忽略停止监听时的错误
+            }
+            
+            // 给后台任务一点时间退出
+            await Task.Delay(50).ConfigureAwait(false);
+            
+            // 释放资源
+            try
+            {
+                _listener?.Dispose();
+                _listener = null;
+            }
+            catch
+            {
+                // 忽略
+            }
+            
+            try
+            {
+                _cts?.Dispose();
+                _cts = null;
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            // 释放消息记录器
+            try
+            {
+                await _messageLogger.DisposeAsync();
+            }
+            catch
+            {
+                // 忽略
+            }
         }
 
         #endregion

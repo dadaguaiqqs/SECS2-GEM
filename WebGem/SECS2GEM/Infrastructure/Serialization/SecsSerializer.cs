@@ -547,8 +547,14 @@ namespace SECS2GEM.Infrastructure.Serialization
             var result = new bool[data.Length];
             for (int i = 0; i < data.Length; i++)
             {
+                // SECS-II 标准：非零字节为 true，零字节为 false
                 result[i] = data[i] != 0;
             }
+            
+            // 调试：记录原始字节和解析结果
+            System.Diagnostics.Debug.WriteLine(
+                $"[Boolean] Raw bytes: [{string.Join(" ", data.ToArray().Select(b => $"0x{b:X2}"))}] -> [{string.Join(", ", result)}]");
+            
             return result;
         }
 

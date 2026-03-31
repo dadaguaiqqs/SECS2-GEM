@@ -1,4 +1,5 @@
 using SECS2GEM.Core.Enums;
+using SECS2GEM.Infrastructure.Logging;
 
 namespace SECS2GEM.Infrastructure.Configuration
 {
@@ -123,6 +124,11 @@ namespace SECS2GEM.Infrastructure.Configuration
         /// 默认：使用T5
         /// </summary>
         public int ReconnectDelay { get; set; } = 0;
+
+        /// <summary>
+        /// 消息日志配置
+        /// </summary>
+        public MessageLoggingConfiguration MessageLogging { get; set; } = new();
 
         #endregion
 

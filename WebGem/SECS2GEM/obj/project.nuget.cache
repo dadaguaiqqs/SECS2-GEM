@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "cr6gMuiMzyo=",
+  "dgSpecHash": "txFd0XPs//o=",
   "success": true,
   "projectFilePath": "D:\\secs\\WebGem\\SECS2GEM\\SECS2GEM.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\WeiGan2018\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.14\\microsoft.netcore.app.ref.9.0.14.nupkg.sha512",
     "C:\\Users\\WeiGan2018\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.14\\microsoft.windowsdesktop.app.ref.9.0.14.nupkg.sha512",
+    "C:\\Users\\WeiGan2018\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.14\\microsoft.netcore.app.ref.9.0.14.nupkg.sha512",
     "C:\\Users\\WeiGan2018\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.14\\microsoft.aspnetcore.app.ref.9.0.14.nupkg.sha512"
   ],
   "logs": []

@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "SECS2GEM.Simulator/1.0.0": {
+        "dependencies": {
+          "SECS2GEM": "1.0.0"
+        },
+        "runtime": {
+          "SECS2GEM.Simulator.dll": {}
+        }
+      },
+      "SECS2GEM/1.0.0": {
+        "runtime": {
+          "SECS2GEM.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SECS2GEM.Simulator/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SECS2GEM/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
